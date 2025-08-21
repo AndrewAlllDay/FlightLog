@@ -59,9 +59,7 @@ a {
   text-decoration: inherit;
 }
 
-a:hover {
-  color: #535bf2;
-}
+
 
 body {
   margin: 0;
@@ -94,9 +92,7 @@ button {
 
 }
 
-button:hover {
-  border-color: #646cff;
-}
+
 
 button:focus,
 button:focus-visible {
@@ -109,13 +105,9 @@ button:focus-visible {
     background-color: #ffffff;
   }
 
-  a:hover {
-    color: #747bff;
-  }
 
-  button {
-    background-color: #f9f9f9;
-  }
+
+
 
   .btn-fix {
     background-color: #333333;
@@ -158,4 +150,23 @@ button:focus-visible {
 
 .button-p-0 {
   padding: 0;
+}
+
+.rad-0 {
+  border-radius: 0;
+}
+
+/*
+  Forcefully removes the default tap highlight and focus outlines from all buttons.
+  This is useful for overriding stubborn mobile browser user-agent stylesheets.
+*/
+button,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+button:focus,
+button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
