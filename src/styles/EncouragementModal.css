@@ -1,0 +1,48 @@
+/* src/styles/EncouragementModal.css */
+
+/* Keyframe for the breathing circle animation */
+@keyframes breath {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.8);
+        opacity: 0.7;
+    }
+}
+
+/* Apply the animation to the breathing circle */
+/* Use a specific class to avoid conflicts */
+.encourage-breathing-circle {
+    animation: breath 6s infinite ease-in-out;
+}
+
+/* Keyframe for modal entry animation */
+@keyframes fadeInScaleReact {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Apply the animation to the modal content */
+.encourage-modal-content-animate {
+    animation: fadeInScaleReact 0.3s ease-out forwards;
+}
+
+/* Ensure font-bold is applied for the phrases, though Tailwind's font-bold should cover this */
+/* .font-bold {
+    font-weight: 700;
+} */

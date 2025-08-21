@@ -1,0 +1,121 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* If you want to apply custom button colors for the light theme */
+@media (prefers-color-scheme: light) {
+  button {
+    background-color: initial !important;
+    /* reset background-color if necessary */
+    /* Alternatively, define your own background color here */
+    background-color: #4caf50;
+    /* Or any color you want */
+    color: white;
+    /* Ensure the text color contrasts */
+  }
+}
+
+
+/* src/index.css */
+
+/* ... existing CSS for optgroup and optgroup option ... */
+
+/* Custom styling for select dropdowns to override browser defaults */
+.custom-select-dropdown {
+  /* Remove default browser/OS appearance */
+  -webkit-appearance: none;
+  /* Safari, iOS */
+  -moz-appearance: none;
+  /* Firefox */
+  appearance: none;
+  /* Standard */
+
+  /* Custom arrow using SVG background-image */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  /* Position the arrow */
+  background-size: 1rem;
+  /* Size the arrow */
+
+  /* Add padding to the right to prevent text from overlapping the arrow */
+  padding-right: 2.5rem;
+  /* Adjust this value if your arrow is larger/smaller */
+
+  /* Optional: Ensure consistent border-radius if needed */
+  border-radius: 0.25rem;
+  /* This matches 'rounded' in Tailwind */
+
+  /* Optional: Set a background color if desired, as native selects can sometimes have transparent backgrounds */
+  background-color: white;
+
+  /* Optional: Ensure font styles are consistent */
+  font-size: 1rem;
+  /* Adjust to match your base font size */
+  line-height: 1.5rem;
+  /* Adjust to match your base line height */
+}
+
+/* For browsers that might still show a focus outline */
+.custom-select-dropdown:focus {
+  outline: none;
+  /* Remove default focus outline */
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+  /* Custom focus ring (Tailwind's focus-ring-blue-500) */
+}
+
+/* Style for category labels */
+optgroup {
+  font-weight: bold;
+  color: #333;
+  /* Dark grey for categories */
+}
+
+/* Style for individual options within categories */
+optgroup option {
+  font-weight: normal;
+  color: #000;
+  /* Black for options */
+}
