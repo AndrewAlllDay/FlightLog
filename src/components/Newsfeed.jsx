@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { getTtlCache, setTtlCache } from '../utilities/cache.js'; // 👈 IMPORT NEW CACHE UTILS
+import { getTtlCache, setTtlCache } from '../utilities/cache.js';
 
 // --- Local default images ---
 import UltiworldDefaultImage from '../assets/Ultiworld_Default.jpg';
@@ -107,24 +107,18 @@ const NewsFeed = () => {
         if (node) observer.current.observe(node);
     }, [isLoading, allItems, displayedItems]);
 
-    // ✨ --- CACHING LOGIC IMPLEMENTED HERE --- ✨
     useEffect(() => {
         const fetchAllFeeds = async () => {
             setIsLoading(true);
             setError(null);
-
-            // 1. Check for valid, non-expired cache first
             const cacheKey = `feed-${activeTab}`;
-            const cachedData = getTtlCache(cacheKey, 15); // Cache for 15 minutes
-
+            const cachedData = getTtlCache(cacheKey, 15);
             if (cachedData) {
                 setAllItems(cachedData);
                 setDisplayedItems(cachedData.slice(0, 5));
                 setIsLoading(false);
-                return; // Skip network fetch
+                return;
             }
-
-            // 2. If no valid cache, proceed to fetch from network
             setAllItems([]);
             setDisplayedItems([]);
             const currentSources = feedSources[activeTab];
@@ -191,8 +185,6 @@ const NewsFeed = () => {
                 const combinedItems = allParsedItems.flat();
                 const sortedItems = combinedItems.sort((a, b) => new Date(b.published) - new Date(a.published));
                 const uniqueItems = Array.from(new Map(sortedItems.map(item => [item.guid, item])).values());
-
-                // 3. Save the fresh data to the cache
                 setTtlCache(cacheKey, uniqueItems);
 
                 setAllItems(uniqueItems);
@@ -211,13 +203,38 @@ const NewsFeed = () => {
         <div className="p-4">
             <h2 className="text-3xl font-bold text-center pt-5 mb-2">{feedInfo.title}</h2>
             <p className="text-gray-600 dark:text-gray-400 text-center mb-6">{feedInfo.description}</p>
-            <div className="flex justify-center border-b border-gray-300 dark:border-gray-700 mb-6">
-                {Object.keys(feedSources).map(tabName => (
-                    <button key={tabName} onClick={() => setActiveTab(tabName)} className={`py-2 px-6 text-lg font-medium focus:outline-none transition-colors duration-300 ${activeTab === tabName ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border-b-2 border-transparent'}`}>
-                        {tabName}
-                    </button>
-                ))}
+
+            <div className="flex justify-center mb-6">
+                {Object.keys(feedSources).map((tabName, index, arr) => {
+                    // --- START: DIAGNOSTIC STYLE OBJECT ---
+                    // This creates a style object that will be applied directly to the button.
+                    const buttonStyle = {};
+                    if (index < arr.length - 1) {
+                        // We are forcing a 2px solid red border to the right of the button.
+                        // If this shows up, it confirms a CSS rule in your project is overriding the Tailwind classes.
+                        buttonStyle.borderRight = '1px solid black';
+                    }
+                    // --- END: DIAGNOSTIC STYLE OBJECT ---
+
+                    return (
+                        <button
+                            key={tabName}
+                            onClick={() => setActiveTab(tabName)}
+                            // Apply the inline style object here. This has the highest priority.
+                            style={buttonStyle}
+                            className={`
+                                py-2 px-6 text-lg font-medium focus:outline-none transition-colors duration-300 !rounded-none !bg-transparent
+                                ${activeTab === tabName
+                                    ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                                    : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 border-b-2 border-transparent'}
+                            `}
+                        >
+                            {tabName}
+                        </button>
+                    );
+                })}
             </div>
+
             {isLoading && displayedItems.length === 0 && <div className="text-center p-4">Loading {activeTab.toLowerCase()}...</div>}
             <ul className={activeTab === 'Podcasts' ? "list-none p-0 flex flex-col gap-4" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 list-none p-0"}>
                 {displayedItems.map((item, index) => {
