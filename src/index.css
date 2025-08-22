@@ -172,3 +172,118 @@ button:focus-visible {
   outline: none !important;
   box-shadow: none !important;
 }
+
+
+/* --- InTheBagPage Shelves Layout --- */
+
+/* The main container that enables horizontal scrolling */
+.shelves-container {
+  display: flex;
+  /* Lays out the shelves in a row */
+  overflow-x: auto;
+  /* Adds horizontal scrollbar when needed */
+  gap: 1rem;
+  /* 16px space between shelves */
+  padding-bottom: 1rem;
+  /* Space for the scrollbar so it doesn't cover content */
+
+  /* This makes scrolling feel clean and deliberate */
+  scroll-snap-type: x mandatory;
+}
+
+/* Styling for each individual category column/shelf */
+.disc-shelf {
+  flex: 0 0 320px;
+  /* Prevents shelves from shrinking and gives them a fixed width */
+  max-height: 75vh;
+  /* Limits the height to 75% of the viewport height */
+  overflow-y: auto;
+  /* Allows individual shelves to scroll vertically */
+  background-color: #ffffff;
+  /* White background for light mode */
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  /* Light gray border */
+
+  /* Aligns the shelf to the start when snapping */
+  scroll-snap-align: start;
+}
+
+/* Dark mode styles for the shelf */
+.dark .disc-shelf {
+  background-color: #1f2937;
+  /* Gray-800 for dark mode */
+  border-color: #374151;
+  /* Gray-700 border */
+}
+
+/* The title bar for each shelf */
+.shelf-title {
+  padding: 0.75rem 1rem;
+  /* 12px 16px */
+  font-size: 1.125rem;
+  /* 18px */
+  font-weight: 600;
+  /* semibold */
+  color: #111827;
+  /* Gray-900 */
+
+  /* Makes the title stick to the top during vertical scroll within its shelf */
+  position: sticky;
+  top: 0;
+  background-color: inherit;
+  /* Ensures it has the same background as the shelf */
+  z-index: 10;
+}
+
+.dark .shelf-title {
+  color: #f9fafb;
+  /* Gray-50 */
+}
+
+/* The small number count next to the title */
+.shelf-disc-count {
+  font-weight: 400;
+  /* normal */
+  color: #4b5563;
+  /* Gray-600 */
+  margin-left: 0.5rem;
+  /* 8px */
+}
+
+.dark .shelf-disc-count {
+  color: #9ca3af;
+  /* Gray-400 */
+}
+
+/* The list that holds the disc items */
+.disc-list {
+  padding: 0 0.5rem 0.5rem 0.5rem;
+  /* 8px padding on sides and bottom */
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  /* 12px space between disc items */
+}
+
+/* --- Responsive Fallback for Mobile --- */
+@media (max-width: 768px) {
+  .shelves-container {
+    flex-direction: column;
+    /* Stack shelves vertically */
+    overflow-x: hidden;
+    /* Disable horizontal scrolling */
+    scroll-snap-type: none;
+    /* Turn off snapping */
+  }
+
+  .disc-shelf {
+    flex-basis: 100%;
+    /* Make shelf take up full width */
+    width: 100%;
+    max-height: none;
+    /* Allow shelf to be as tall as needed */
+  }
+}

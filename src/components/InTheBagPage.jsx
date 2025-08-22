@@ -9,14 +9,13 @@ import {
     updateDiscInBag,
     deleteDiscFromBag
 } from '../services/firestoreService';
-// ✨ 1. Import all cache utilities
 import { getCache, setCache, getTtlCache, setTtlCache } from '../utilities/cache.js';
 import { toast } from 'react-toastify';
 import { FaTrash } from 'react-icons/fa';
 import { Archive, FolderOpen, ChevronDown, ChevronUp, Pencil, MoreVertical } from 'lucide-react';
+import '../styles/InTheBagPage.css';
 
 const Accordion = ({ title, children, isOpen, onToggle }) => {
-    // ... Accordion component code (unchanged)
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md max-w-full mx-auto mb-6">
             <button
@@ -49,30 +48,31 @@ export default function InTheBagPage({ user: currentUser }) {
     const [apiFetchError, setApiFetchError] = useState(null);
     const [pendingApiDisc, setPendingApiDisc] = useState(null);
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, disc: null });
-    const [openAccordions, setOpenAccordions] = useState({});
+    const [isArchivedOpen, setIsArchivedOpen] = useState(false);
 
-    // ✨ 2. API fetch now uses TTL caching
+    const shelvesContainerRef = useRef(null);
+    const [activeShelf, setActiveShelf] = useState(null);
+
+
     useEffect(() => {
         const fetchDiscsFromApi = async () => {
             const cacheKey = 'apiDiscs';
-            // Try to get data from cache, valid for 24 hours (1440 minutes)
             const cachedData = getTtlCache(cacheKey, 1440);
 
             if (cachedData) {
                 setApiDiscs(cachedData);
                 setIsApiLoading(false);
                 setApiFetchError(null);
-                return; // Found fresh data in cache, no need to fetch
+                return;
             }
 
-            // If no valid cache, fetch from the network
             try {
                 const response = await fetch('https://discit-api.fly.dev/disc');
                 if (!response.ok) {
                     throw new Error(`API error! Status: ${response.status}`);
                 }
                 const data = await response.json();
-                setTtlCache(cacheKey, data); // Save new data to cache
+                setTtlCache(cacheKey, data);
                 setApiDiscs(data);
                 setApiFetchError(null);
             } catch (error) {
@@ -134,6 +134,61 @@ export default function InTheBagPage({ user: currentUser }) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [openDiscActionsId]);
 
+    // --- MOVED THIS ENTIRE BLOCK UP ---
+    const groupedActiveDiscs = activeDiscs.reduce((acc, disc) => {
+        const type = (disc.type && disc.type.trim() !== '') ? disc.type : 'Other';
+        if (!acc[type]) acc[type] = [];
+        acc[type].push(disc);
+        return acc;
+    }, {});
+
+    const discTypeOrder = [
+        'Distance Driver', 'Hybrid Driver', 'Control Driver', 'Midrange', 'Approach Discs', 'Putter'
+    ];
+
+    const sortedActiveDiscTypes = Object.keys(groupedActiveDiscs).sort((a, b) => {
+        const indexA = discTypeOrder.indexOf(a);
+        const indexB = discTypeOrder.indexOf(b);
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+    });
+    // --- END OF MOVED BLOCK ---
+
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setActiveShelf(entry.target.dataset.shelfType);
+                    }
+                });
+            },
+            {
+                root: shelvesContainerRef.current,
+                threshold: 0.6,
+            }
+        );
+
+        const shelves = shelvesContainerRef.current?.querySelectorAll('.disc-shelf');
+        if (shelves) {
+            shelves.forEach((shelf) => observer.observe(shelf));
+        }
+
+        if (sortedActiveDiscTypes.length > 0 && !activeShelf) {
+            setActiveShelf(sortedActiveDiscTypes[0]);
+        }
+
+        return () => {
+            if (shelves) {
+                shelves.forEach((shelf) => observer.unobserve(shelf));
+            }
+        };
+    }, [activeDiscs, sortedActiveDiscTypes, activeShelf]);
+
+
     const openAddDiscModal = () => {
         setIsApiModalOpen(true);
     };
@@ -183,8 +238,8 @@ export default function InTheBagPage({ user: currentUser }) {
             setCurrentDiscToEdit(null);
             setPendingApiDisc(null);
         } catch (error) {
-            toast.error("Failed to save disc.");
             console.error("Save disc error:", error);
+            toast.error("Failed to save disc.");
         }
     };
 
@@ -199,6 +254,7 @@ export default function InTheBagPage({ user: currentUser }) {
             toast.success(`${discName} moved to 'On the Shelf'!`);
             setOpenDiscActionsId(null);
         } catch (error) {
+            console.error("Failed to archive disc:", error);
             toast.error("Failed to archive disc.");
         }
     };
@@ -210,6 +266,7 @@ export default function InTheBagPage({ user: currentUser }) {
             toast.success(`${discName} restored to your bag!`);
             setOpenDiscActionsId(null);
         } catch (error) {
+            console.error("Failed to restore disc:", error);
             toast.error("Failed to restore disc.");
         }
     };
@@ -229,6 +286,7 @@ export default function InTheBagPage({ user: currentUser }) {
             await deleteDiscFromBag(currentUser.uid, deleteModalState.disc.id);
             toast.success(`'${deleteModalState.disc.name}' permanently deleted.`);
         } catch (error) {
+            console.error("Failed to delete disc:", error);
             toast.error("Failed to delete disc.");
         } finally {
             setDeleteModalState({ isOpen: false, disc: null });
@@ -239,51 +297,20 @@ export default function InTheBagPage({ user: currentUser }) {
         setDeleteModalState({ isOpen: false, disc: null });
     };
 
-    const groupedActiveDiscs = activeDiscs.reduce((acc, disc) => {
-        const type = (disc.type && disc.type.trim() !== '') ? disc.type : 'Other';
-        if (!acc[type]) acc[type] = [];
-        acc[type].push(disc);
-        return acc;
-    }, {});
-
-    const discTypeOrder = [
-        'Distance Driver', 'Hybrid Driver', 'Control Driver', 'Midrange', 'Approach Discs', 'Putter'
-    ];
-
-    const sortedActiveDiscTypes = Object.keys(groupedActiveDiscs).sort((a, b) => {
-        const indexA = discTypeOrder.indexOf(a);
-        const indexB = discTypeOrder.indexOf(b);
-        if (indexA === -1 && indexB === -1) return a.localeCompare(b);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-    });
-
-    const handleToggleAccordion = (type) => {
-        setOpenAccordions(prev => ({ ...prev, [type]: !prev[type] }));
-    };
-
-    const collapseAll = () => {
-        setOpenAccordions({});
-    };
-
     if (!currentUser) {
         return <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-black"><p className="text-lg text-gray-700 dark:text-gray-300">Please log in to view and manage your disc bag.</p></div>;
     }
 
     const renderDiscItem = (disc, type) => (
-        // ... renderDiscItem code (unchanged)
         <li
             key={disc.id}
-            className={`disc-item border rounded-lg shadow-sm p-4 flex justify-between items-center relative ${type === 'active' ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
+            className={`disc-item  rounded-lg shadow-sm p-4 !pe-0 flex justify-between items-center relative ${type === 'active' ? '' : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
         >
             <div>
                 <h4 className={`text-lg font-normal ${type === 'active' ? 'text-gray-800 dark:text-white' : 'text-gray-700 dark:text-gray-200'}`}>
                     <span className='font-bold'>{disc.manufacturer}</span> {disc.plastic ? `${disc.plastic}` : ''} {disc.name}
                 </h4>
-                <p className={`text-sm ${type === 'active' ? 'text-gray-600 dark:text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {disc.speed !== undefined ? `Speed: ${disc.speed} | Glide: ${disc.glide} | Turn: ${disc.turn} | Fade: ${disc.fade}` : `Color: ${disc.color || ''}`}
-                </p>
+
             </div>
             <div className="relative">
                 <button onClick={() => handleToggleDiscActions(disc.id)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded-full !bg-transparent transition-colors" title="Disc Options">
@@ -320,7 +347,7 @@ export default function InTheBagPage({ user: currentUser }) {
     );
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 pb-48">
+        <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 pb-48 min-w-0">
             <h2 className="text-2xl font-bold text-center pt-5 mb-2">In Your Bag</h2>
             {activeDiscs.length > 0 && (
                 <p className="text-md text-gray-600 dark:text-gray-400 text-center mb-6">{activeDiscs.length} active discs</p>
@@ -331,41 +358,37 @@ export default function InTheBagPage({ user: currentUser }) {
                     You haven't added any discs to your bag yet! Click the '+' button to get started.
                 </p>
             ) : (
-                <>
-                    <div className="max-w-full mx-auto mb-2 flex justify-start space-x-4">
-                        <button onClick={collapseAll} className="!text-sm text-gray-400 dark:text-blue-400 !font-normal hover:underline !bg-transparent">Collapse All</button>
-                    </div>
-                    <div className="space-y-4">
-                        {sortedActiveDiscTypes.map(type => (
-                            <Accordion
-                                key={type}
-                                title={
-                                    <span className='text-blue-700 dark:text-blue-400 text-xl'>
-                                        {type} <span className='text-black dark:text-white text-base font-light'>({groupedActiveDiscs[type].length} discs)</span>
-                                    </span>
+                <div className="shelves-container" ref={shelvesContainerRef}>
+                    {sortedActiveDiscTypes.map(type => (
+                        <div
+                            key={type}
+                            className={`disc-shelf ${activeShelf === type ? 'is-active' : ''}`}
+                            data-shelf-type={type}
+                        >
+                            <h3 className="shelf-title">
+                                {type}
+                                <span className="shelf-disc-count">
+                                    ({groupedActiveDiscs[type].length})
+                                </span>
+                            </h3>
+                            <ul className="disc-list">
+                                {groupedActiveDiscs[type]
+                                    .sort((a, b) => {
+                                        const speedA = parseInt(a.speed, 10) || 0;
+                                        const speedB = parseInt(b.speed, 10) || 0;
+                                        if (speedA !== speedB) {
+                                            return speedB - speedA;
+                                        }
+                                        const nameA = (a.name || '').trim();
+                                        const nameB = (b.name || '').trim();
+                                        return nameA.localeCompare(nameB);
+                                    })
+                                    .map(disc => renderDiscItem(disc, 'active'))
                                 }
-                                isOpen={!!openAccordions[type]}
-                                onToggle={() => handleToggleAccordion(type)}
-                            >
-                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                    {groupedActiveDiscs[type]
-                                        .sort((a, b) => {
-                                            const speedA = parseInt(a.speed, 10) || 0;
-                                            const speedB = parseInt(b.speed, 10) || 0;
-                                            if (speedA !== speedB) {
-                                                return speedB - speedA;
-                                            }
-                                            const nameA = (a.name || '').trim();
-                                            const nameB = (b.name || '').trim();
-                                            return nameA.localeCompare(nameB);
-                                        })
-                                        .map(disc => renderDiscItem(disc, 'active'))
-                                    }
-                                </ul>
-                            </Accordion>
-                        ))}
-                    </div>
-                </>
+                            </ul>
+                        </div>
+                    ))}
+                </div>
             )}
 
             {archivedDiscs.length > 0 && (
@@ -373,8 +396,8 @@ export default function InTheBagPage({ user: currentUser }) {
                     <hr className="my-8 border-t border-gray-200 dark:border-gray-700" />
                     <Accordion
                         title={`On the Shelf (${archivedDiscs.length} discs)`}
-                        isOpen={!!openAccordions['archived']}
-                        onToggle={() => handleToggleAccordion('archived')}
+                        isOpen={isArchivedOpen}
+                        onToggle={() => setIsArchivedOpen(!isArchivedOpen)}
                     >
                         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 relative z-10">
                             {archivedDiscs

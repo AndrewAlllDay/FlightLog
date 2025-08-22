@@ -1,0 +1,69 @@
+/* --- InTheBagPage Shelves Layout --- */
+
+.shelves-container {
+    display: flex;
+    flex-direction: row !important;
+    overflow-x: auto;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    scroll-snap-type: x mandatory;
+
+    /* UPDATED: Simplified padding to allow for centering */
+    padding-left: 2.5%;
+    padding-right: 2.5%;
+}
+
+/* All media queries for the container have been removed for this simpler approach */
+
+.disc-shelf {
+    flex: 0 0 100%;
+    width: 98%;
+    max-width: 450px;
+    padding-left: 20px;
+    padding-right: 20px;
+    overflow-y: auto;
+    background-color: #ffffff;
+
+
+    /* UPDATED: Changed from 'start' to 'center' */
+    scroll-snap-align: center;
+}
+
+.dark .disc-shelf {
+    background-color: #1f2937;
+    border-color: #374151;
+}
+
+.shelf-title {
+    padding: 0.75rem 1rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #111827;
+    position: sticky;
+    top: 0;
+    background-color: inherit;
+    z-index: 10;
+}
+
+.dark .shelf-title {
+    color: #f9fafb;
+}
+
+.shelf-disc-count {
+    font-weight: 400;
+    color: #4b5563;
+    margin-left: 0.5rem;
+}
+
+.dark .shelf-disc-count {
+    color: #9ca3af;
+}
+
+.disc-list {
+    padding: 0 0.5rem 0.5rem 0.5rem;
+    list-style: none;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
