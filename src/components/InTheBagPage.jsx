@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useLongPress } from '../hooks/useLongPress';
+import Portal from './Portal';
 import DiscFormModal from '../components/AddDiscModal';
 import AddDiscFromAPImodal from '../components/AddDiscFromAPImodal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
@@ -35,6 +37,89 @@ const Accordion = ({ title, children, isOpen, onToggle }) => {
     );
 };
 
+const DiscItem = ({
+    disc,
+    type,
+    openDiscActionsId,
+    dropdownRef,
+    actions,
+    isLast
+}) => {
+    const itemRef = useRef(null);
+    const [menuStyle, setMenuStyle] = useState({});
+
+    const onLongPress = () => {
+        if (itemRef.current) {
+            const rect = itemRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const menuHeight = 130;
+            const topPosition = spaceBelow < menuHeight ? rect.top - menuHeight - 5 : rect.top + rect.height + 5;
+
+            setMenuStyle({
+                position: 'fixed',
+                top: `${topPosition}px`,
+                right: `${window.innerWidth - rect.right}px`,
+                width: `192px`
+            });
+        }
+        actions.handleToggleDiscActions(disc.id);
+    };
+
+    const longPressEvents = useLongPress(onLongPress, { delay: 400 });
+    const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-gray-700';
+
+    return (
+        <li
+            ref={itemRef}
+            className={`disc-item p-4 flex justify-between items-center relative select-none ${borderClass} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
+            {...longPressEvents}
+        >
+            <div className="flex-grow">
+                <h4 className={`text-lg font-normal text-gray-800 dark:text-white`}>
+                    <span className='font-bold'>{disc.manufacturer}</span> {disc.plastic ? `${disc.plastic}` : ''} {disc.name}
+                </h4>
+                <p className={`text-sm text-gray-600 dark:text-gray-400`}>
+                    {disc.speed !== undefined ? `Speed: ${disc.speed} | Glide: ${disc.glide} | Turn: ${disc.turn} | Fade: ${disc.fade}` : `Color: ${disc.color || ''}`}
+                </p>
+            </div>
+            {openDiscActionsId === disc.id && (
+                <Portal>
+                    {/* This transparent overlay covers the screen and closes the menu when clicked */}
+                    <div
+                        className="fixed inset-0 z-[999]"
+                        onClick={() => actions.handleToggleDiscActions(null)}
+                    />
+                    <div ref={dropdownRef} style={menuStyle} className="bg-white dark:bg-gray-700 rounded-md shadow-lg z-[1000] border border-gray-200 dark:border-gray-600">
+                        {type === 'active' ? (
+                            <>
+                                <button onClick={() => actions.openEditDiscModal(disc)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
+                                    <Pencil size={16} className="mr-2" /> Edit
+                                </button>
+                                <button onClick={() => actions.handleArchiveDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
+                                    <Archive size={16} className="mr-2" /> Move to Shelf
+                                </button>
+                                <button onClick={() => actions.handleDeleteDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-b-md">
+                                    <FaTrash size={16} className="mr-2" /> Delete
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={() => actions.handleRestoreDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
+                                    <FolderOpen size={16} className="mr-2" /> Restore to Bag
+                                </button>
+                                <button onClick={() => actions.handleDeleteDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-b-md">
+                                    <FaTrash size={16} className="mr-2" /> Delete
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </Portal>
+            )}
+        </li>
+    );
+};
+
+
 export default function InTheBagPage({ user: currentUser }) {
     const [activeDiscs, setActiveDiscs] = useState([]);
     const [archivedDiscs, setArchivedDiscs] = useState([]);
@@ -50,27 +135,19 @@ export default function InTheBagPage({ user: currentUser }) {
     const [deleteModalState, setDeleteModalState] = useState({ isOpen: false, disc: null });
     const [isArchivedOpen, setIsArchivedOpen] = useState(false);
 
-    const shelvesContainerRef = useRef(null);
-    const [activeShelf, setActiveShelf] = useState(null);
-
-
     useEffect(() => {
         const fetchDiscsFromApi = async () => {
             const cacheKey = 'apiDiscs';
             const cachedData = getTtlCache(cacheKey, 1440);
-
             if (cachedData) {
                 setApiDiscs(cachedData);
                 setIsApiLoading(false);
                 setApiFetchError(null);
                 return;
             }
-
             try {
                 const response = await fetch('https://discit-api.fly.dev/disc');
-                if (!response.ok) {
-                    throw new Error(`API error! Status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`API error! Status: ${response.status}`);
                 const data = await response.json();
                 setTtlCache(cacheKey, data);
                 setApiDiscs(data);
@@ -99,17 +176,13 @@ export default function InTheBagPage({ user: currentUser }) {
             const activeCacheKey = `userDiscs-active-${currentUser.uid}`;
             const archivedCacheKey = `userDiscs-archived-${currentUser.uid}`;
             const cachedActive = getCache(activeCacheKey);
-            if (cachedActive) {
-                setActiveDiscs(cachedActive);
-            }
+            if (cachedActive) setActiveDiscs(cachedActive);
             unsubscribeActive = subscribeToUserDiscs(currentUser.uid, (discs) => {
                 setActiveDiscs(discs);
                 setCache(activeCacheKey, discs);
             });
             const cachedArchived = getCache(archivedCacheKey);
-            if (cachedArchived) {
-                setArchivedDiscs(cachedArchived);
-            }
+            if (cachedArchived) setArchivedDiscs(cachedArchived);
             unsubscribeArchived = subscribeToArchivedUserDiscs(currentUser.uid, (discs) => {
                 setArchivedDiscs(discs);
                 setCache(archivedCacheKey, discs);
@@ -124,17 +197,9 @@ export default function InTheBagPage({ user: currentUser }) {
         };
     }, [currentUser]);
 
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (openDiscActionsId && dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setOpenDiscActionsId(null);
-            }
-        };
-        if (openDiscActionsId) document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [openDiscActionsId]);
+    // The useEffect for handling outside clicks has been removed.
+    // The new overlay handles this responsibility.
 
-    // --- MOVED THIS ENTIRE BLOCK UP ---
     const groupedActiveDiscs = activeDiscs.reduce((acc, disc) => {
         const type = (disc.type && disc.type.trim() !== '') ? disc.type : 'Other';
         if (!acc[type]) acc[type] = [];
@@ -154,44 +219,8 @@ export default function InTheBagPage({ user: currentUser }) {
         if (indexB === -1) return -1;
         return indexA - indexB;
     });
-    // --- END OF MOVED BLOCK ---
 
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        setActiveShelf(entry.target.dataset.shelfType);
-                    }
-                });
-            },
-            {
-                root: shelvesContainerRef.current,
-                threshold: 0.6,
-            }
-        );
-
-        const shelves = shelvesContainerRef.current?.querySelectorAll('.disc-shelf');
-        if (shelves) {
-            shelves.forEach((shelf) => observer.observe(shelf));
-        }
-
-        if (sortedActiveDiscTypes.length > 0 && !activeShelf) {
-            setActiveShelf(sortedActiveDiscTypes[0]);
-        }
-
-        return () => {
-            if (shelves) {
-                shelves.forEach((shelf) => observer.unobserve(shelf));
-            }
-        };
-    }, [activeDiscs, sortedActiveDiscTypes, activeShelf]);
-
-
-    const openAddDiscModal = () => {
-        setIsApiModalOpen(true);
-    };
+    const openAddDiscModal = () => setIsApiModalOpen(true);
 
     const openEditDiscModal = (disc) => {
         setCurrentDiscToEdit(disc);
@@ -225,12 +254,7 @@ export default function InTheBagPage({ user: currentUser }) {
             } else if (pendingApiDisc) {
                 const allDiscs = [...activeDiscs, ...archivedDiscs];
                 const maxOrder = allDiscs.length > 0 ? Math.max(...allDiscs.map(d => d.displayOrder || 0)) : -1;
-                const finalDiscData = {
-                    ...pendingApiDisc,
-                    ...sanitizedData,
-                    isArchived: false,
-                    displayOrder: maxOrder + 1,
-                };
+                const finalDiscData = { ...pendingApiDisc, ...sanitizedData, isArchived: false, displayOrder: maxOrder + 1 };
                 await addDiscToBag(currentUser.uid, finalDiscData);
                 toast.success(`${finalDiscData.name} added to your bag!`);
             }
@@ -244,7 +268,12 @@ export default function InTheBagPage({ user: currentUser }) {
     };
 
     const handleToggleDiscActions = (discId) => {
-        setOpenDiscActionsId(prevId => (prevId === discId ? null : discId));
+        // If passed null (from the overlay click), always close.
+        if (discId === null) {
+            setOpenDiscActionsId(null);
+        } else {
+            setOpenDiscActionsId(prevId => (prevId === discId ? null : discId));
+        }
     };
 
     const handleArchiveDisc = async (discId, discName) => {
@@ -293,58 +322,19 @@ export default function InTheBagPage({ user: currentUser }) {
         }
     };
 
-    const cancelDeleteDisc = () => {
-        setDeleteModalState({ isOpen: false, disc: null });
+    const cancelDeleteDisc = () => setDeleteModalState({ isOpen: false, disc: null });
+
+    const discActions = {
+        handleToggleDiscActions,
+        openEditDiscModal,
+        handleArchiveDisc,
+        handleDeleteDisc,
+        handleRestoreDisc
     };
 
     if (!currentUser) {
         return <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-black"><p className="text-lg text-gray-700 dark:text-gray-300">Please log in to view and manage your disc bag.</p></div>;
     }
-
-    const renderDiscItem = (disc, type) => (
-        <li
-            key={disc.id}
-            className={`disc-item  rounded-lg shadow-sm p-4 !pe-0 flex justify-between items-center relative ${type === 'active' ? '' : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600'} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
-        >
-            <div>
-                <h4 className={`text-lg font-normal ${type === 'active' ? 'text-gray-800 dark:text-white' : 'text-gray-700 dark:text-gray-200'}`}>
-                    <span className='font-bold'>{disc.manufacturer}</span> {disc.plastic ? `${disc.plastic}` : ''} {disc.name}
-                </h4>
-
-            </div>
-            <div className="relative">
-                <button onClick={() => handleToggleDiscActions(disc.id)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-2 rounded-full !bg-transparent transition-colors" title="Disc Options">
-                    <MoreVertical size={20} />
-                </button>
-                {openDiscActionsId === disc.id && (
-                    <div ref={dropdownRef} className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-md shadow-lg z-20 border border-gray-200 dark:border-gray-600">
-                        {type === 'active' ? (
-                            <>
-                                <button onClick={() => openEditDiscModal(disc)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
-                                    <Pencil size={16} className="mr-2" /> Edit
-                                </button>
-                                <button onClick={() => handleArchiveDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">
-                                    <Archive size={16} className="mr-2" /> Move to Shelf
-                                </button>
-                                <button onClick={() => handleDeleteDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-b-md">
-                                    <FaTrash size={16} className="mr-2" /> Delete
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <button onClick={() => handleRestoreDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
-                                    <FolderOpen size={16} className="mr-2" /> Restore to Bag
-                                </button>
-                                <button onClick={() => handleDeleteDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-b-md">
-                                    <FaTrash size={16} className="mr-2" /> Delete
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
-        </li>
-    );
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 pb-48 min-w-0">
@@ -358,13 +348,9 @@ export default function InTheBagPage({ user: currentUser }) {
                     You haven't added any discs to your bag yet! Click the '+' button to get started.
                 </p>
             ) : (
-                <div className="shelves-container" ref={shelvesContainerRef}>
-                    {sortedActiveDiscTypes.map(type => (
-                        <div
-                            key={type}
-                            className={`disc-shelf ${activeShelf === type ? 'is-active' : ''}`}
-                            data-shelf-type={type}
-                        >
+                <div className="shelves-container">
+                    {sortedActiveDiscTypes.map((type) => (
+                        <div className="disc-shelf" key={type}>
                             <h3 className="shelf-title">
                                 {type}
                                 <span className="shelf-disc-count">
@@ -383,8 +369,17 @@ export default function InTheBagPage({ user: currentUser }) {
                                         const nameB = (b.name || '').trim();
                                         return nameA.localeCompare(nameB);
                                     })
-                                    .map(disc => renderDiscItem(disc, 'active'))
-                                }
+                                    .map((disc, index, array) => (
+                                        <DiscItem
+                                            key={disc.id}
+                                            disc={disc}
+                                            type="active"
+                                            openDiscActionsId={openDiscActionsId}
+                                            dropdownRef={dropdownRef}
+                                            actions={discActions}
+                                            isLast={index === array.length - 1}
+                                        />
+                                    ))}
                             </ul>
                         </div>
                     ))}
@@ -402,8 +397,17 @@ export default function InTheBagPage({ user: currentUser }) {
                         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 relative z-10">
                             {archivedDiscs
                                 .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-                                .map(disc => renderDiscItem(disc, 'archived'))
-                            }
+                                .map((disc, index, array) => (
+                                    <DiscItem
+                                        key={disc.id}
+                                        disc={disc}
+                                        type="archived"
+                                        openDiscActionsId={openDiscActionsId}
+                                        dropdownRef={dropdownRef}
+                                        actions={discActions}
+                                        isLast={index === array.length - 1}
+                                    />
+                                ))}
                         </ul>
                     </Accordion>
                 </>
