@@ -1,4 +1,4 @@
-/* --- InTheBagPage Shelves Layout --- */
+/* --- InTheBagPage Shelves Layout (Updated) --- */
 
 .shelves-container {
     display: flex;
@@ -7,22 +7,32 @@
     gap: 1rem;
     padding-bottom: 1rem;
     scroll-snap-type: x mandatory;
-    padding-left: 2.5%;
-    padding-right: 2.5%;
     align-items: start;
-    /* ADDED: Aligns shelves of different heights to the top */
+    /* REMOVED: Horizontal padding to let scroll-snap handle alignment perfectly */
+
+    /* ADDED: For smooth scrolling and to hide the scrollbar */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.shelves-container::-webkit-scrollbar {
+    display: none;
 }
 
 .disc-shelf {
-    flex: 0 0 100%;
-    width: 98%;
+    flex: 0 0 95%;
+    /* Controls the width of the shelf */
     max-width: 450px;
     padding-left: 20px;
     padding-right: 20px;
     background-color: #ffffff;
     scroll-snap-align: center;
-    /* REMOVED: `max-height` and `overflow-y` to allow dynamic height */
+    scroll-snap-stop: always;
+    /* CRITICAL: Prevents skipping categories */
+    /* REMOVED: Redundant `width` property */
 }
+
+/* --- Unchanged Rules Below --- */
 
 .dark .disc-shelf {
     background-color: #1f2937;

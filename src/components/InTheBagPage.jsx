@@ -65,7 +65,7 @@ const DiscItem = ({
         actions.handleToggleDiscActions(disc.id);
     };
 
-    const longPressEvents = useLongPress(onLongPress, { delay: 400 });
+    const longPressEvents = useLongPress(onLongPress, { delay: 700 });
     const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-gray-700';
 
     return (
