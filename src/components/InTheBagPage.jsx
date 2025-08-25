@@ -68,15 +68,29 @@ const DiscItem = ({
         actions.handleToggleDiscActions(disc.id);
     };
 
-    // Using the simplified hook now.
     const longPressEvents = useLongPress(onLongPress, { delay: 600 });
     const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-gray-700';
+
+    // --- Logic to handle white disc color ---
+    const itemStyles = {
+        borderLeft: disc.color ? `8px solid ${disc.color}` : 'none',
+
+    };
+
+    // Check if the disc color is white
+    const isWhite = disc.color && ['#ffffff', '#fff', 'white'].includes(disc.color.toLowerCase().trim());
+
+    if (isWhite) {
+        // If it's white, add a subtle inner shadow to act as a border
+        itemStyles.boxShadow = 'inset 1px 0 0 rgba(0, 0, 0, 0.15)';
+    }
+    // --- End of new logic ---
 
     return (
         <li
             ref={itemRef}
             className={`disc-item p-4 flex justify-between items-center relative select-none ${borderClass} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
-            style={{ borderLeft: disc.color ? `8px solid ${disc.color}` : 'none' }}
+            style={itemStyles}
             {...longPressEvents}
         >
             <div className="flex-grow">
@@ -101,7 +115,6 @@ const DiscItem = ({
                     <div ref={dropdownRef} style={menuStyle} className="bg-white dark:bg-gray-700 rounded-md shadow-lg z-[1000] border border-gray-200 dark:border-gray-600">
                         {type === 'active' ? (
                             <>
-                                {/* Reverted back to onClick */}
                                 <button onClick={() => actions.openEditDiscModal(disc)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
                                     <Pencil size={16} className="mr-2" /> Edit
                                 </button>
@@ -114,7 +127,6 @@ const DiscItem = ({
                             </>
                         ) : (
                             <>
-                                {/* Reverted back to onClick */}
                                 <button onClick={() => actions.handleRestoreDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
                                     <FolderOpen size={16} className="mr-2" /> Restore to Bag
                                 </button>
