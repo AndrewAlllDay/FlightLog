@@ -49,6 +49,9 @@ const DiscItem = ({
     const [menuStyle, setMenuStyle] = useState({});
 
     const onLongPress = () => {
+        if (navigator.vibrate) {
+            navigator.vibrate(50); // Vibrate for 50 milliseconds
+        }
         if (itemRef.current) {
             const rect = itemRef.current.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom;
@@ -65,22 +68,28 @@ const DiscItem = ({
         actions.handleToggleDiscActions(disc.id);
     };
 
-    const longPressEvents = useLongPress(onLongPress, { delay: 700 });
+    // Using the simplified hook now.
+    const longPressEvents = useLongPress(onLongPress, { delay: 600 });
     const borderClass = isLast ? '' : 'border-b border-gray-200 dark:border-gray-700';
 
     return (
         <li
             ref={itemRef}
             className={`disc-item p-4 flex justify-between items-center relative select-none ${borderClass} ${openDiscActionsId === disc.id ? 'z-30' : ''}`}
+            style={{ borderLeft: disc.color ? `8px solid ${disc.color}` : 'none' }}
             {...longPressEvents}
         >
             <div className="flex-grow">
                 <h4 className={`text-lg font-normal text-gray-800 dark:text-white`}>
-                    <span className='font-bold'>{disc.manufacturer}</span> {disc.plastic ? `${disc.plastic}` : ''} {disc.name}
+                    <span className='font-bold'>{disc.manufacturer}</span>
                 </h4>
-                <p className={`text-sm text-gray-600 dark:text-gray-400`}>
-                    {disc.speed !== undefined ? `Speed: ${disc.speed} | Glide: ${disc.glide} | Turn: ${disc.turn} | Fade: ${disc.fade}` : `Color: ${disc.color || ''}`}
-                </p>
+                <h4>
+                    {disc.plastic ? `${disc.plastic}` : ''} {disc.name}
+                </h4>
+                <h4>
+
+                </h4>
+
             </div>
             {openDiscActionsId === disc.id && (
                 <Portal>
@@ -92,6 +101,7 @@ const DiscItem = ({
                     <div ref={dropdownRef} style={menuStyle} className="bg-white dark:bg-gray-700 rounded-md shadow-lg z-[1000] border border-gray-200 dark:border-gray-600">
                         {type === 'active' ? (
                             <>
+                                {/* Reverted back to onClick */}
                                 <button onClick={() => actions.openEditDiscModal(disc)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
                                     <Pencil size={16} className="mr-2" /> Edit
                                 </button>
@@ -104,6 +114,7 @@ const DiscItem = ({
                             </>
                         ) : (
                             <>
+                                {/* Reverted back to onClick */}
                                 <button onClick={() => actions.handleRestoreDisc(disc.id, disc.name)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">
                                     <FolderOpen size={16} className="mr-2" /> Restore to Bag
                                 </button>
@@ -197,9 +208,6 @@ export default function InTheBagPage({ user: currentUser }) {
         };
     }, [currentUser]);
 
-    // The useEffect for handling outside clicks has been removed.
-    // The new overlay handles this responsibility.
-
     const groupedActiveDiscs = activeDiscs.reduce((acc, disc) => {
         const type = (disc.type && disc.type.trim() !== '') ? disc.type : 'Other';
         if (!acc[type]) acc[type] = [];
@@ -268,7 +276,6 @@ export default function InTheBagPage({ user: currentUser }) {
     };
 
     const handleToggleDiscActions = (discId) => {
-        // If passed null (from the overlay click), always close.
         if (discId === null) {
             setOpenDiscActionsId(null);
         } else {
