@@ -104,7 +104,6 @@ const Accordion = ({ title, children, defaultOpen = false }) => {
 export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavigate, params = {} }) {
     const userId = user?.uid;
 
-    // Original SettingsPage State
     const [displayNameInput, setDisplayNameInput] = useState('');
     const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
     const [importMessage, setImportMessage] = useState({ type: '', text: '' });
@@ -119,8 +118,6 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const [selectPlayerState, setSelectPlayerState] = useState({ isOpen: false, players: [], onSelect: () => { } });
     const [pendingCourse, setPendingCourse] = useState(null);
     const [pendingRoundData, setPendingRoundData] = useState(null);
-
-    // State from SendEncouragement
     const [noteText, setNoteText] = useState('');
     const [recipients, setRecipients] = useState([]);
     const [selectedRecipientId, setSelectedRecipientId] = useState('');
@@ -129,7 +126,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const encouragementDropdownRef = useRef(null);
 
-    const APP_VERSION = 'v 0.1.57';
+    const APP_VERSION = 'v 0.1.56';
 
     const proceedToScoreImport = useCallback(async (course, csvResults) => {
         const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');
@@ -218,6 +215,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
                 Papa.parse(fileToProcess, {
                     header: true,
                     skipEmptyLines: true,
+                    bom: true, // <-- FIX: Added bom: true to handle invisible characters
                     complete: (results) => handleCourseImport(results),
                     error: () => setImportMessage({ type: 'error', text: 'Failed to parse the shared CSV file.' })
                 });
