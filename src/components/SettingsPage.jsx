@@ -126,7 +126,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const encouragementDropdownRef = useRef(null);
 
-    const APP_VERSION = 'v 0.1.63';
+    const APP_VERSION = 'v 0.1.64';
 
     const proceedToScoreImport = useCallback(async (course, csvResults) => {
         const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');
@@ -174,6 +174,14 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
             const courseName = rawCourseName;
             const layoutName = rawLayoutName;
             const existingCourses = await getUserCourses(userId);
+
+            // --- DEBUGGING LOGS START ---
+            console.log(`[FROM CSV] Cleaned Course: "${courseName}" | Cleaned Layout: "${layoutName}"`);
+            existingCourses.forEach(c => {
+                console.log(`[FROM DB] Cleaned Course: "${cleanStringForComparison(c.name)}" | Cleaned Layout: "${cleanStringForComparison(c.tournamentName)}"`);
+            });
+            // --- DEBUGGING LOGS END ---
+
             const existingCourse = existingCourses.find(c =>
                 cleanStringForComparison(c.name) === courseName &&
                 cleanStringForComparison(c.tournamentName) === layoutName
@@ -209,41 +217,24 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     }, [userId, proceedToScoreImport, handleCreationConfirmed]);
 
     useEffect(() => {
-        console.log("--- SHARE DEBUG: Share listener useEffect triggered. Params:", params);
-
         const processFile = async (fileToProcess) => {
             if (fileToProcess) {
-                console.log("--- SHARE DEBUG: processFile started. Received fileToProcess:", fileToProcess);
-                console.log("--- SHARE DEBUG: Type of fileToProcess:", typeof fileToProcess);
-
                 setImportMessage({ type: 'info', text: 'Processing shared file...' });
                 Papa.parse(fileToProcess, {
                     header: true,
                     skipEmptyLines: true,
                     bom: true,
-                    complete: (results) => {
-                        console.log("--- SHARE DEBUG: PapaParse complete. Results:", results);
-                        if (results.errors.length > 0) {
-                            console.error("--- SHARE DEBUG: PapaParse encountered non-fatal errors:", results.errors);
-                        }
-                        handleCourseImport(results);
-                    },
-                    error: (err) => {
-                        console.error("--- SHARE DEBUG: PapaParse failed with error:", err);
-                        setImportMessage({ type: 'error', text: 'Failed to parse the shared CSV file. Check console for details.' });
-                    }
+                    complete: (results) => handleCourseImport(results),
+                    error: () => setImportMessage({ type: 'error', text: 'Failed to parse the shared CSV file.' })
                 });
                 await clearFiles();
             }
         };
-
         const runImport = async () => {
             if (params.sharedFile) {
-                console.log("--- SHARE DEBUG: params.sharedFile found. Starting processFile.");
                 processFile(params.sharedFile);
             }
             else if (params.triggerImport) {
-                console.log("--- SHARE DEBUG: params.triggerImport found. Getting file from IndexedDB.");
                 const file = await getFile();
                 processFile(file);
             }
