@@ -1,7 +1,7 @@
 // public/service-worker.js
 
 // Increment this version any time you make changes
-const CACHE_NAME = 'dgnotes-cache-v1.0.51';
+const CACHE_NAME = 'dgnotes-cache-v1.0.63';
 
 const urlsToCache = [
     '/',
@@ -62,17 +62,15 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Look for the '?share-target=true' query parameter to identify the share.
-    if (event.request.method === 'POST' && url.searchParams.has('share-target')) {
+    // Look for the POST request to the share-receiver.html page.
+    if (event.request.method === 'POST' && url.pathname === '/share-receiver.html') {
         event.respondWith((async () => {
             try {
                 const formData = await event.request.formData();
-                // The manifest guarantees the file will have the name "csvfile".
-                const file = formData.get('csvfile');
+                const file = formData.get('csvfile'); // The manifest guarantees this name
 
                 if (file) {
                     await saveFile(file);
-                    // Redirect to a URL that tells the app to trigger the import from IndexedDB.
                     return Response.redirect('/?trigger-import=true', 303);
                 } else {
                     throw new Error('No file named "csvfile" was found in the shared data.');
