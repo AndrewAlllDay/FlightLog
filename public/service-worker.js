@@ -1,7 +1,7 @@
 // public/service-worker.js
 
 // Increment this version any time you make changes
-const CACHE_NAME = 'dgnotes-cache-v1.0.65';
+const CACHE_NAME = 'dgnotes-cache-v1.0.66'; // <-- I incremented this for you
 
 const urlsToCache = [
     '/',
@@ -70,7 +70,19 @@ self.addEventListener('fetch', event => {
                 const file = formData.get('csvfile'); // The manifest guarantees this name
 
                 if (file) {
-                    await saveFile(file);
+                    // =================== FIX STARTS HERE ===================
+
+                    // 1. Sanitize the filename to handle special characters like apostrophes.
+                    const sanitizedName = file.name.replace(/'/g, '_');
+
+                    // 2. Create a new File object with the original content but the new, safe name.
+                    const sanitizedFile = new File([file], sanitizedName, { type: file.type });
+
+                    // 3. Save the sanitized file to IndexedDB, not the original.
+                    await saveFile(sanitizedFile);
+
+                    // ==================== FIX ENDS HERE ====================
+
                     return Response.redirect('/?trigger-import=true', 303);
                 } else {
                     throw new Error('No file named "csvfile" was found in the shared data.');
