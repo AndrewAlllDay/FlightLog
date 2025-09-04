@@ -1,7 +1,7 @@
 // public/service-worker.js
 
 // Increment this version any time you make changes to the service worker
-const CACHE_NAME = 'dgnotes-cache-v1.0.47';
+const CACHE_NAME = 'dgnotes-cache-v1.0.48';
 
 const urlsToCache = [
     '/',
