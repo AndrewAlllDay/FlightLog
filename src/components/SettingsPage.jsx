@@ -1,6 +1,6 @@
 // src/components/SettingsPage.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Copy, ChevronDown, ChevronUp, PlusCircle, Trash2, UserPlus, UserMinus, LogOut, Save, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ChevronDown, ChevronUp, PlusCircle, Trash2, UserPlus, UserMinus, LogOut, Save, Check } from 'lucide-react';
 import Papa from 'papaparse';
 import {
     setUserProfile,
@@ -68,6 +68,8 @@ const cleanStringForComparison = (str) => {
     if (typeof str !== 'string') return '';
     str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return str
+        .replace(/[‘’`]/g, "'")
+        // eslint-disable-next-line no-control-regex
         .replace(/[\x00-\x1F\x7F]/g, '')
         .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
         .replace(/[\u200B-\u200D\uFEFF\u2060\u2061\u2062\u2063\u2064\u206A-\u206F\uFFF9-\uFFFB]/g, '')
@@ -103,7 +105,6 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const userId = user?.uid;
 
     // Original SettingsPage State
-    const [copyMessage, setCopyMessage] = useState('');
     const [displayNameInput, setDisplayNameInput] = useState('');
     const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
     const [importMessage, setImportMessage] = useState({ type: '', text: '' });
@@ -130,6 +131,86 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
 
     const APP_VERSION = 'v 0.1.56';
 
+    const proceedToScoreImport = useCallback(async (course, csvResults) => {
+        const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');
+        const userRow = playerRows.find(row => cleanStringForComparison(row.PlayerName) === cleanStringForComparison(user.displayName));
+        const openNotesModalWithData = (selectedRow) => {
+            setPendingRoundData({
+                course: course,
+                userRow: selectedRow,
+                headers: csvResults.meta.fields,
+            });
+            setIsNotesModalOpen(true);
+        };
+        if (userRow) {
+            openNotesModalWithData(userRow);
+        } else {
+            setSelectPlayerState({
+                isOpen: true,
+                players: playerRows.map(row => row.PlayerName),
+                onSelect: (selectedPlayer) => {
+                    const selectedRow = playerRows.find(row => row.PlayerName === selectedPlayer);
+                    setSelectPlayerState({ isOpen: false, players: [], onSelect: () => { } });
+                    openNotesModalWithData(selectedRow);
+                }
+            });
+        }
+    }, [user.displayName]);
+
+    const handleCreationConfirmed = useCallback((courseData, holesArray, csvResults) => {
+        setPendingCourse({ courseData, holesArray, csvResults });
+        setSelectTypeState({ isOpen: true });
+        setConfirmationState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+    }, []);
+
+    const handleCourseImport = useCallback(async (csvResults) => {
+        setIsImportModalOpen(false);
+        setImportMessage({ type: '', text: '' });
+        try {
+            const csvData = csvResults.data;
+            const headers = csvResults.meta.fields;
+            const parRow = csvData.find(row => row.PlayerName === 'Par');
+            if (!parRow) throw new Error("Could not find 'Par' row in CSV.");
+            const rawCourseName = cleanStringForComparison(parRow.CourseName);
+            const rawLayoutName = cleanStringForComparison(parRow.LayoutName);
+            if (!rawCourseName) throw new Error("CSV is missing 'CourseName'.");
+            const courseName = rawCourseName;
+            const layoutName = rawLayoutName;
+            const existingCourses = await getUserCourses(userId);
+            const existingCourse = existingCourses.find(c =>
+                cleanStringForComparison(c.name) === courseName &&
+                cleanStringForComparison(c.tournamentName) === layoutName
+            );
+            if (existingCourse) {
+                await proceedToScoreImport(existingCourse, csvResults);
+            } else {
+                const holesArray = [];
+                for (const header of headers) {
+                    const match = header.match(/^Hole(\w+)$/);
+                    if (match) {
+                        holesArray.push({
+                            id: `${Date.now()}-${match[1]}-${Math.random().toString(36).substring(2, 9)}`,
+                            number: match[1],
+                            par: parRow[header],
+                            note: '',
+                        });
+                    }
+                }
+                if (holesArray.length === 0) throw new Error("No 'HoleX' columns found.");
+                const courseData = { name: courseName, tournamentName: layoutName };
+                setConfirmationState({
+                    isOpen: true,
+                    title: 'Create New Course?',
+                    message: `No course named "${courseName} - ${layoutName}" found. Would you like to create it now?`,
+                    onConfirm: () => handleCreationConfirmed(courseData, holesArray, csvResults)
+                });
+            }
+        } catch (error) {
+            setImportMessage({ type: 'error', text: `Import failed: ${error.message}` });
+            console.error("DEBUG: handleCourseImport error:", error);
+        }
+    }, [userId, proceedToScoreImport, handleCreationConfirmed]);
+
     useEffect(() => {
         const processFile = async (fileToProcess) => {
             if (fileToProcess) {
@@ -148,7 +229,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
             else if (params.triggerImport) { const file = await getFile(); processFile(file); }
         };
         if (userId) { runImport(); }
-    }, [params, userId]);
+    }, [params, userId, handleCourseImport]);
 
     useEffect(() => {
         if (user) { setDisplayNameInput(user.displayName || ''); }
@@ -185,7 +266,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
                 setSelectedRecipientId('');
             }
         }
-    }, [allUserProfiles, user]);
+    }, [allUserProfiles, user, selectedRecipientId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -243,15 +324,6 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const handleSelectRecipient = (recipientId) => {
         setSelectedRecipientId(recipientId);
         setIsDropdownOpen(false);
-    };
-
-    const handleCopyUserId = () => {
-        if (userId) {
-            navigator.clipboard.writeText(userId).then(() => {
-                setCopyMessage('Copied!');
-                setTimeout(() => setCopyMessage(''), 2000);
-            });
-        }
     };
 
     const handleSaveDisplayName = async () => {
@@ -324,39 +396,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
         setPendingRoundData(null);
     };
 
-    const proceedToScoreImport = async (course, csvResults) => {
-        const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');
-        const userRow = playerRows.find(row => cleanStringForComparison(row.PlayerName) === cleanStringForComparison(user.displayName));
-        const openNotesModalWithData = (selectedRow) => {
-            setPendingRoundData({
-                course: course,
-                userRow: selectedRow,
-                headers: csvResults.meta.fields,
-            });
-            setIsNotesModalOpen(true);
-        };
-        if (userRow) {
-            openNotesModalWithData(userRow);
-        } else {
-            setSelectPlayerState({
-                isOpen: true,
-                players: playerRows.map(row => row.PlayerName),
-                onSelect: (selectedPlayer) => {
-                    const selectedRow = playerRows.find(row => row.PlayerName === selectedPlayer);
-                    setSelectPlayerState({ isOpen: false, players: [], onSelect: () => { } });
-                    openNotesModalWithData(selectedRow);
-                }
-            });
-        }
-    };
-
-    const handleCreationConfirmed = (courseData, holesArray, csvResults) => {
-        setPendingCourse({ courseData, holesArray, csvResults });
-        setSelectTypeState({ isOpen: true });
-        setConfirmationState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
-    };
-
-    const handleCreateFinal = async (classification) => {
+    const handleCreateFinal = useCallback(async (classification) => {
         if (!pendingCourse) return;
         const { courseData, holesArray, csvResults } = pendingCourse;
         const finalCourseData = { ...courseData, classification };
@@ -370,55 +410,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
             setSelectTypeState({ isOpen: false });
             setPendingCourse(null);
         }
-    };
-
-    const handleCourseImport = async (csvResults) => {
-        setIsImportModalOpen(false);
-        setImportMessage({ type: '', text: '' });
-        try {
-            const csvData = csvResults.data;
-            const headers = csvResults.meta.fields;
-            const parRow = csvData.find(row => row.PlayerName === 'Par');
-            if (!parRow) throw new Error("Could not find 'Par' row in CSV.");
-            const rawCourseName = cleanStringForComparison(parRow.CourseName);
-            const rawLayoutName = cleanStringForComparison(parRow.LayoutName);
-            if (!rawCourseName) throw new Error("CSV is missing 'CourseName'.");
-            const courseName = rawCourseName;
-            const layoutName = rawLayoutName;
-            const existingCourses = await getUserCourses(userId);
-            const existingCourse = existingCourses.find(c =>
-                cleanStringForComparison(c.name) === courseName &&
-                cleanStringForComparison(c.tournamentName) === layoutName
-            );
-            if (existingCourse) {
-                await proceedToScoreImport(existingCourse, csvResults);
-            } else {
-                const holesArray = [];
-                for (const header of headers) {
-                    const match = header.match(/^Hole(\w+)$/);
-                    if (match) {
-                        holesArray.push({
-                            id: `${Date.now()}-${match[1]}-${Math.random().toString(36).substring(2, 9)}`,
-                            number: match[1],
-                            par: parRow[header],
-                            note: '',
-                        });
-                    }
-                }
-                if (holesArray.length === 0) throw new Error("No 'HoleX' columns found.");
-                const courseData = { name: courseName, tournamentName: layoutName };
-                setConfirmationState({
-                    isOpen: true,
-                    title: 'Create New Course?',
-                    message: `No course named "${courseName} - ${layoutName}" found. Would you like to create it now?`,
-                    onConfirm: () => handleCreationConfirmed(courseData, holesArray, csvResults)
-                });
-            }
-        } catch (error) {
-            setImportMessage({ type: 'error', text: `Import failed: ${error.message}` });
-            console.error("DEBUG: handleCourseImport error:", error);
-        }
-    };
+    }, [pendingCourse, userId, proceedToScoreImport]);
 
     const handleAutoSaveRole = async (targetUserId, newRole) => {
         if (!newRole || !targetUserId) return;
