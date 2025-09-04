@@ -1,7 +1,7 @@
 // public/service-worker.js
 
-// Increment this version any time you make changes to the service worker
-const CACHE_NAME = 'dgnotes-cache-v1.0.50'; // Incremented version number
+// Increment this version any time you make changes
+const CACHE_NAME = 'dgnotes-cache-v1.0.52';
 
 const urlsToCache = [
     '/',
@@ -62,38 +62,27 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Specifically handle the POST request from the share target
-    if (event.request.method === 'POST' && url.pathname === '/share-receiver.html') {
+    // Look for the '?share-target=true' query parameter to identify the share.
+    if (event.request.method === 'POST' && url.searchParams.has('share-target')) {
         event.respondWith((async () => {
             try {
                 const formData = await event.request.formData();
-
-                // --- FIX STARTS HERE ---
-                // Instead of looking for a specific name, find the first file in the form data.
-                let file = null;
-                for (const value of formData.values()) {
-                    if (value instanceof File) {
-                        file = value;
-                        break; // Stop once we find the first file
-                    }
-                }
+                // The manifest guarantees the file will have the name "csvfile".
+                const file = formData.get('csvfile');
 
                 if (file) {
                     await saveFile(file);
-                    // Redirect to a URL that tells the app to trigger the import from IndexedDB
+                    // Redirect to a URL that tells the app to trigger the import from IndexedDB.
                     return Response.redirect('/?trigger-import=true', 303);
                 } else {
-                    // This handles cases where something was shared, but it wasn't a file.
-                    throw new Error('No file was found in the shared data.');
+                    throw new Error('No file named "csvfile" was found in the shared data.');
                 }
-                // --- FIX ENDS HERE ---
-
             } catch (error) {
                 console.error('Service Worker: Error handling shared file:', error);
                 return Response.redirect('/?share-target-error=true', 303);
             }
         })());
-        return; // Stop further processing for this request
+        return;
     }
 
     // For all other requests, use a "Network falling back to cache" strategy.
