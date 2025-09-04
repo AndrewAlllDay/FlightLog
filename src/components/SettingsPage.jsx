@@ -126,7 +126,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const encouragementDropdownRef = useRef(null);
 
-    const APP_VERSION = 'v 0.1.60';
+    const APP_VERSION = 'v 0.1.61';
 
     const proceedToScoreImport = useCallback(async (course, csvResults) => {
         const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');

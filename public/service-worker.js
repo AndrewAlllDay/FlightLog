@@ -1,7 +1,7 @@
 // public/service-worker.js
 
 // Increment this version any time you make changes to the service worker
-const CACHE_NAME = 'dgnotes-cache-v1.0.48';
+const CACHE_NAME = 'dgnotes-cache-v1.0.50'; // Incremented version number
 
 const urlsToCache = [
     '/',
@@ -9,7 +9,7 @@ const urlsToCache = [
     '/manifest.json',
 ];
 
-// IndexedDB functions for the share target (these are correct)
+// IndexedDB functions for the share target
 function getDb() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open('dgnotes-shared-files', 1);
@@ -58,7 +58,7 @@ self.addEventListener('activate', event => {
     );
 });
 
-// --- CORRECTED FETCH HANDLER ---
+// Fetch event: handle network requests and the share target
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
@@ -67,11 +67,27 @@ self.addEventListener('fetch', event => {
         event.respondWith((async () => {
             try {
                 const formData = await event.request.formData();
-                const file = formData.get('csvfile');
+
+                // --- FIX STARTS HERE ---
+                // Instead of looking for a specific name, find the first file in the form data.
+                let file = null;
+                for (const value of formData.values()) {
+                    if (value instanceof File) {
+                        file = value;
+                        break; // Stop once we find the first file
+                    }
+                }
+
                 if (file) {
                     await saveFile(file);
+                    // Redirect to a URL that tells the app to trigger the import from IndexedDB
+                    return Response.redirect('/?trigger-import=true', 303);
+                } else {
+                    // This handles cases where something was shared, but it wasn't a file.
+                    throw new Error('No file was found in the shared data.');
                 }
-                return Response.redirect('/?share-target=true', 303);
+                // --- FIX ENDS HERE ---
+
             } catch (error) {
                 console.error('Service Worker: Error handling shared file:', error);
                 return Response.redirect('/?share-target-error=true', 303);
@@ -81,10 +97,8 @@ self.addEventListener('fetch', event => {
     }
 
     // For all other requests, use a "Network falling back to cache" strategy.
-    // This correctly handles Firestore requests and provides offline support.
     event.respondWith(
         fetch(event.request).catch(() => {
-            // If the network request fails (e.g., offline), try to serve from the cache.
             return caches.match(event.request);
         })
     );
