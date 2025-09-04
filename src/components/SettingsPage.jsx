@@ -21,7 +21,6 @@ import SelectCourseTypeModal from './SelectCourseTypeModal';
 import SelectPlayerModal from './SelectPlayerModal';
 import AddRoundNotesModal from './AddRoundNotesModal';
 
-// ... (getDb, getFile, clearFiles functions remain the same) ...
 function getDb() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open('dgnotes-shared-files', 1);
@@ -65,7 +64,6 @@ async function clearFiles() {
     });
 }
 
-
 const cleanStringForComparison = (str) => {
     if (typeof str !== 'string') return '';
     str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -106,13 +104,9 @@ const Accordion = ({ title, children, defaultOpen = false }) => {
 export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavigate, params = {} }) {
     const userId = user?.uid;
 
-    // --- TEMPORARY STATE FOR ON-SCREEN LOGGING ---
-    const [debugLogs, setDebugLogs] = useState([]);
-
     const [displayNameInput, setDisplayNameInput] = useState('');
     const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
     const [importMessage, setImportMessage] = useState({ type: '', text: '' });
-    // ... (the rest of your state variables) ...
     const [roleSaveMessage, setRoleSaveMessage] = useState({ type: '', text: '' });
     const [teams, setTeams] = useState([]);
     const [newTeamName, setNewTeamName] = useState('');
@@ -132,9 +126,8 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const encouragementDropdownRef = useRef(null);
 
-    const APP_VERSION = 'v 0.1.65';
+    const APP_VERSION = 'v 0.1.56';
 
-    // ... (useCallback functions remain the same) ...
     const proceedToScoreImport = useCallback(async (course, csvResults) => {
         const playerRows = csvResults.data.filter(row => row.PlayerName !== 'Par');
         const userRow = playerRows.find(row => cleanStringForComparison(row.PlayerName) === cleanStringForComparison(user.displayName));
@@ -167,11 +160,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
         setConfirmationState({ isOpen: false, title: '', message: '', onConfirm: () => { } });
     }, []);
 
-
     const handleCourseImport = useCallback(async (csvResults) => {
-        // --- MODIFIED FOR ON-SCREEN LOGGING ---
-        const newLogs = [];
-
         setIsImportModalOpen(false);
         setImportMessage({ type: '', text: '' });
         try {
@@ -185,14 +174,6 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
             const courseName = rawCourseName;
             const layoutName = rawLayoutName;
             const existingCourses = await getUserCourses(userId);
-
-            // Capture logs instead of printing to console
-            newLogs.push(`[FROM CSV] Course: "${courseName}" | Layout: "${layoutName}"`);
-            existingCourses.forEach(c => {
-                newLogs.push(`[FROM DB] Course: "${cleanStringForComparison(c.name)}" | Layout: "${cleanStringForComparison(c.tournamentName)}"`);
-            });
-            setDebugLogs(newLogs); // Update state to display logs
-
             const existingCourse = existingCourses.find(c =>
                 cleanStringForComparison(c.name) === courseName &&
                 cleanStringForComparison(c.tournamentName) === layoutName
@@ -223,11 +204,9 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
             }
         } catch (error) {
             setImportMessage({ type: 'error', text: `Import failed: ${error.message}` });
-            setDebugLogs(prev => [...prev, `ERROR: ${error.message}`]); // Log errors too
         }
     }, [userId, proceedToScoreImport, handleCreationConfirmed]);
 
-    // ... (The rest of your useEffects and handlers remain the same) ...
     useEffect(() => {
         const processFile = async (fileToProcess) => {
             if (fileToProcess) {
@@ -389,6 +368,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
                 throw new Error('Could not create a valid date from StartDate.');
             }
         } catch (e) {
+            // FIX: Log the actual error to the console for better debugging.
             console.error("Date parsing failed:", e);
             setImportMessage({ type: 'error', text: 'Import failed: Could not read the date format in the CSV.' });
             setIsNotesModalOpen(false);
@@ -515,17 +495,7 @@ export default function SettingsPage({ user, allUserProfiles, onSignOut, onNavig
         <div className="max-h-screen !bg-gray-100 p-4 pb-48">
             <h2 className="text-2xl font-bold mb-6 text-center pt-5">Settings</h2>
 
-            {/* --- TEMPORARY UI FOR ON-SCREEN LOGGING --- */}
-            {debugLogs.length > 0 && (
-                <Accordion title="Debug Logs" defaultOpen={true}>
-                    <pre className="whitespace-pre-wrap break-words bg-gray-800 text-white font-mono text-xs p-4 rounded-md">
-                        {debugLogs.join('\n')}
-                    </pre>
-                </Accordion>
-            )}
-
             <Accordion title="Your Account">
-                {/* ... (rest of your JSX) ... */}
                 <div className="mb-4">
                     <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">Set Your Display Name:</label>
                     <div className="flex items-center gap-2">
